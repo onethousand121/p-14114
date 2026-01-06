@@ -1,12 +1,10 @@
 package com.back.domain.post.postComment.controller;
 
 import com.back.domain.member.member.entity.Member;
-import com.back.domain.member.member.service.MemberService;
 import com.back.domain.post.post.entity.Post;
 import com.back.domain.post.post.service.PostService;
 import com.back.domain.post.postComment.dto.PostCommentDto;
 import com.back.domain.post.postComment.entity.PostComment;
-import com.back.global.exception.ServiceException;
 import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,7 +24,6 @@ import java.util.List;
 @Tag(name = "ApiV1PostCommentController", description = "API 댓글 컨트롤러")
 public class ApiV1PostCommentController {
     private final PostService postService;
-    private final MemberService memberService;
     private final Rq rq;
 
     @GetMapping
@@ -71,8 +68,7 @@ public class ApiV1PostCommentController {
 
         PostComment postComment = post.findCommentById(id).get();
 
-        if (!actor.equals(postComment.getAuthor()))
-            throw new ServiceException("403-1", "댓글 삭제 권한이 없습니다.");
+        postComment.checkActorCanDelete(actor);
 
         postService.deleteComment(post, postComment);
 
@@ -104,8 +100,7 @@ public class ApiV1PostCommentController {
 
         PostComment postComment = post.findCommentById(id).get();
 
-        if (!actor.equals(postComment.getAuthor()))
-            throw new ServiceException("403-1", "댓글 수정 권한이 없습니다.");
+        postComment.checkActorCanModify(actor);
 
         postService.modifyComment(postComment, reqBody.content);
 
