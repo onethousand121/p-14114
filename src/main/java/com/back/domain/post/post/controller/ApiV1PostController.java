@@ -1,8 +1,12 @@
 package com.back.domain.post.post.controller;
 
+import com.back.domain.member.member.entity.Member;
+import com.back.domain.member.member.service.MemberService;
 import com.back.domain.post.post.dto.PostDto;
 import com.back.domain.post.post.entity.Post;
 import com.back.domain.post.post.service.PostService;
+import com.back.global.exception.ServiceException;
+import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,12 +25,18 @@ import java.util.List;
 @Tag(name = "ApiV1PostController", description = "API 글 컨트롤러")
 public class ApiV1PostController {
     private final PostService postService;
+    private final MemberService memberService;
+    private final Rq rq;
 
     @GetMapping
     @Transactional(readOnly = true)
     @Operation(summary = "다건 조회")
     public List<PostDto> getItems() {
         List<Post> items = postService.findAll();
+
+        System.out.println("memberService : " + memberService);
+        System.out.println("rq : " + rq);
+        System.out.println("rq : " + rq);
 
         return items
                 .stream()
@@ -46,8 +56,15 @@ public class ApiV1PostController {
     @DeleteMapping("/{id}")
     @Transactional
     @Operation(summary = "삭제")
-    public RsData<Void> delete(@PathVariable int id) {
+    public RsData<Void> delete(
+            @PathVariable int id
+    ) {
+        Member actor = rq.getActor();
+
         Post post = postService.findById(id).get();
+
+        if (!actor.equals(post.getAuthor()))
+            throw new ServiceException("403-1", "글 삭제 권한이 없습니다.");
 
         postService.delete(post);
 
@@ -71,8 +88,12 @@ public class ApiV1PostController {
     @PostMapping
     @Transactional
     @Operation(summary = "작성")
-    public RsData<PostDto> write(@Valid @RequestBody PostWriteReqBody reqBody) {
-        Post post = postService.write(reqBody.title, reqBody.content);
+    public RsData<PostDto> write(
+            @Valid @RequestBody PostWriteReqBody reqBody
+    ) {
+        Member actor = rq.getActor();
+
+        Post post = postService.write(actor, reqBody.title, reqBody.content);
 
         return new RsData<>(
                 "201-1",
@@ -98,7 +119,13 @@ public class ApiV1PostController {
             @PathVariable int id,
             @Valid @RequestBody PostModifyReqBody reqBody
     ) {
+        Member actor = rq.getActor();
+
         Post post = postService.findById(id).get();
+
+        if (!actor.equals(post.getAuthor()))
+            throw new ServiceException("403-1", "글 수정 권한이 없습니다.");
+
         postService.modify(post, reqBody.title, reqBody.content);
 
         return new RsData<>(

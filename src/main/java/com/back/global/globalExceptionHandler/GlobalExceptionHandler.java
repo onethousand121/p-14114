@@ -1,13 +1,17 @@
 package com.back.global.globalExceptionHandler;
 
+import com.back.global.exception.ServiceException;
 import com.back.global.rsData.RsData;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Comparator;
 import java.util.NoSuchElementException;
@@ -16,7 +20,7 @@ import java.util.stream.Collectors;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
-@ControllerAdvice
+@RestControllerAdvice
 @RequiredArgsConstructor
 public class GlobalExceptionHandler {
     @ExceptionHandler(NoSuchElementException.class)
@@ -27,6 +31,32 @@ public class GlobalExceptionHandler {
                         "해당 데이터가 존재하지 않습니다."
                 ),
                 NOT_FOUND
+        );
+    }
+
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<RsData<Void>> handle(ConstraintViolationException ex) {
+        String message = ex.getConstraintViolations()
+                .stream()
+                .map(violation -> {
+                    String field = violation.getPropertyPath().toString().split("\\.", 2)[1];
+                    String[] messageTemplateBits = violation.getMessageTemplate()
+                            .split("\\.");
+                    String code = messageTemplateBits[messageTemplateBits.length - 2];
+                    String _message = violation.getMessage();
+
+                    return "%s-%s-%s".formatted(field, code, _message);
+                })
+                .sorted(Comparator.comparing(String::toString))
+                .collect(Collectors.joining("\n"));
+
+        return new ResponseEntity<>(
+                new RsData<>(
+                        "400-1",
+                        message
+                ),
+                BAD_REQUEST
         );
     }
 
@@ -61,4 +91,27 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<RsData<Void>> handle(MissingRequestHeaderException ex) {
+        return new ResponseEntity<>(
+                new RsData<>(
+                        "400-1",
+                        "%s-%s-%s".formatted(
+                                ex.getHeaderName(),
+                                "NotBlank",
+                                ex.getLocalizedMessage()
+                        )
+                ),
+                BAD_REQUEST
+        );
+    }
+
+    @ExceptionHandler(ServiceException.class)
+    public RsData<Void> handle(ServiceException ex, HttpServletResponse response) {
+        RsData<Void> rsData = ex.getRsData();
+
+        response.setStatus(rsData.statusCode());
+
+        return rsData;
+    }
 }
