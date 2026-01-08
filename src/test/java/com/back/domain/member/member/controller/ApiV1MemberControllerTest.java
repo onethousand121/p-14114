@@ -1,6 +1,5 @@
-package com.back.domain.post.member.member.controller;
+package com.back.domain.member.member.controller;
 
-import com.back.domain.member.member.controller.ApiV1MemberController;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.service.MemberService;
 import jakarta.servlet.http.Cookie;
@@ -17,8 +16,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -94,14 +92,20 @@ public class ApiV1MemberControllerTest {
                 .andExpect(jsonPath("$.data.item.createDate").value(Matchers.startsWith(member.getCreateDate().toString().substring(0, 20))))
                 .andExpect(jsonPath("$.data.item.modifyDate").value(Matchers.startsWith(member.getModifyDate().toString().substring(0, 20))))
                 .andExpect(jsonPath("$.data.item.name").value(member.getName()))
-                .andExpect(jsonPath("$.data.apiKey").value(member.getApiKey()));
+                .andExpect(jsonPath("$.data.apiKey").value(member.getApiKey()))
+                .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
 
         resultActions.andExpect(
                 result -> {
                     Cookie apiKeyCookie = result.getResponse().getCookie("apiKey");
-                    assertThat(apiKeyCookie.getValue()).isNotBlank();
+                    assertThat(apiKeyCookie.getValue()).isEqualTo(member.getApiKey());
                     assertThat(apiKeyCookie.getPath()).isEqualTo("/");
                     assertThat(apiKeyCookie.getAttribute("HttpOnly")).isEqualTo("true");
+
+                    Cookie accessTokenCookie = result.getResponse().getCookie("accessToken");
+                    assertThat(accessTokenCookie.getValue()).isNotBlank();
+                    assertThat(accessTokenCookie.getPath()).isEqualTo("/");
+                    assertThat(accessTokenCookie.getAttribute("HttpOnly")).isEqualTo("true");
                 }
         );
     }
@@ -161,5 +165,30 @@ public class ApiV1MemberControllerTest {
                 .andExpect(jsonPath("$.data.createDate").value(Matchers.startsWith(member.getCreateDate().toString().substring(0, 20))))
                 .andExpect(jsonPath("$.data.modifyDate").value(Matchers.startsWith(member.getModifyDate().toString().substring(0, 20))))
                 .andExpect(jsonPath("$.data.name").value(member.getName()));
+    }
+
+
+    @Test
+    @DisplayName("로그아웃")
+    void t6() throws Exception {
+        ResultActions resultActions = mvc
+                .perform(
+                        delete("/api/v1/members/logout")
+                )
+                .andDo(print());
+
+        resultActions
+                .andExpect(handler().handlerType(ApiV1MemberController.class))
+                .andExpect(handler().methodName("logout"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200-1"))
+                .andExpect(jsonPath("$.msg").value("로그아웃 되었습니다."))
+                .andExpect(result -> {
+                    Cookie apiKeyCookie = result.getResponse().getCookie("apiKey");
+                    assertThat(apiKeyCookie.getValue()).isEmpty();
+                    assertThat(apiKeyCookie.getMaxAge()).isEqualTo(0);
+                    assertThat(apiKeyCookie.getPath()).isEqualTo("/");
+                    assertThat(apiKeyCookie.isHttpOnly()).isTrue();
+                });
     }
 }
