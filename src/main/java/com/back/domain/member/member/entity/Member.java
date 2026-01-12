@@ -19,6 +19,12 @@ public class Member extends BaseEntity {
     @Column(unique = true)
     private String apiKey;
 
+    public Member(int id, String username, String name) {
+        setId(id);
+        this.username = username;
+        setName(name);
+    }
+
     public Member(String username, String password, String nickname) {
         this.username = username;
         this.password = password;
@@ -30,7 +36,17 @@ public class Member extends BaseEntity {
         return nickname;
     }
 
+    public void setName(String name) {
+        this.nickname = name;
+    }
+
     public void modifyApiKey(String apiKey) {
         this.apiKey = apiKey;
+    }
+
+    public boolean isAdmin() {
+        if ("system".equals(username)) return true;
+        if ("admin".equals(username)) return true;
+        return false;
     }
 }
